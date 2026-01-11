@@ -2,29 +2,19 @@ import time
 import requests
 import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
-from selenium.webdriver.common.by import By
 
-# ================= CONFIG =================
 VACANCIES_URL = "https://agropraktika.eu/vacancies"
-CHECK_INTERVAL = 60  # 1 минута
-
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1459858470080745543/9hazlSN59_B19-Mz40Gy2nvXWHHvTbjNuEl17BK0iAjhuONQXhTG9Nq9HNM6Zj6ZRuUk"
+CHECK_INTERVAL = 10  # 10 секунд
+DISCORD_WEBHOOK = "PASTE_YOUR_DISCORD_WEBHOOK"
 
 ALLOWED_COUNTRIES = ["united kingdom", "uk", "england", "scotland", "wales"]
 
 EXCLUDE_KEYWORDS = [
-    "student",
-    "intern",
-    "trainee",
-    "2nd year",
-    "second year",
-    "3rd year",
-    "third year",
-    "второгодник"
-    "второгодников",
-    "третьегод"
+    "student", "intern", "trainee",
+    "2nd year", "second year",
+    "3rd year", "third year",
+    "второгод", "третьегод"
 ]
-# =========================================
 
 
 def send_to_discord(text):
@@ -35,8 +25,8 @@ def send_to_discord(text):
     )
 
 
-def vacancy_is_valid(title, location):
-    text = f"{title} {location}".lower()
+def vacancy_is_valid(text):
+    text = text.lower()
 
     if not any(c in text for c in ALLOWED_COUNTRIES):
         return False
@@ -49,19 +39,16 @@ def vacancy_is_valid(title, location):
 
 def parse_vacancies(html):
     soup = BeautifulSoup(html, "html.parser")
-    results = []
+    vacancies = []
 
-    cards = soup.select("a[href*='/vacancies/']")
-    for card in cards:
-        title = card.get_text(strip=True)
-        link = card["href"]
+    for a in soup.select("a[href*='/vacancies/']"):
+        title = a.get_text(strip=True)
+        link = a["href"]
 
-        if not vacancy_is_valid(title, ""):
-            continue
+        if vacancy_is_valid(title):
+            vacancies.append((title, link))
 
-        results.append((title, link))
-
-    return results
+    return vacancies
 
 
 def start_browser():
@@ -69,7 +56,6 @@ def start_browser():
     options.binary_location = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--start-maximized")
-
     return uc.Chrome(options=options)
 
 
@@ -77,12 +63,12 @@ def main():
     driver = start_browser()
     seen = set()
 
-    send_to_discord("🟢 Agropraktika monitor started (UK only)")
+    send_to_discord("🟢 @everyone **Agropraktika UK monitor started**")
 
     while True:
         try:
             driver.get(VACANCIES_URL)
-            time.sleep(5)
+            time.sleep(4)
 
             vacancies = parse_vacancies(driver.page_source)
 
@@ -90,7 +76,7 @@ def main():
                 if link not in seen:
                     seen.add(link)
                     send_to_discord(
-                        f"🚨 **NEW UK VACANCY**\n"
+                        f"@everyone 🚨 **NEW UK VACANCY (≈30s window)**\n"
                         f"**{title}**\n"
                         f"https://agropraktika.eu{link}"
                     )
