@@ -50,6 +50,8 @@ def parse_vacancies(html):
 
     return vacancies
 
+send_to_discord("TEST MESSAGE")
+
 
 def start_browser():
     options = uc.ChromeOptions()
