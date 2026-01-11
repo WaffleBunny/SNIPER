@@ -1,0 +1,81 @@
+import time
+import requests
+import undetected_chromedriver as uc
+from bs4 import BeautifulSoup
+
+VACANCIES_URL = "https://agropraktika.eu/vacancies"
+CHECK_INTERVAL = 10  # каждые 10 секунд
+
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1459858470080745543/9hazlSN59_B19-Mz40Gy2nvXWHHvTbjNuEl17BK0iAjhuONQXhTG9Nq9HNM6Zj6ZRuUk"
+
+ALLOWED_COUNTRIES = ["united kingdom", "uk", "england", "scotland", "wales"]
+
+EXCLUDE_KEYWORDS = [
+    "student", "intern", "trainee",
+    "2nd year", "second year",
+    "3rd year", "third year",
+    "второгод", "третьегод"
+]
+
+
+def send_to_discord(text):
+    requests.post(DISCORD_WEBHOOK, json={"content": text}, timeout=10)
+
+
+def vacancy_is_valid(text):
+    text = text.lower()
+    if not any(c in text for c in ALLOWED_COUNTRIES):
+        return False
+    if any(k in text for k in EXCLUDE_KEYWORDS):
+        return False
+    return True
+
+
+def parse_vacancies(html):
+    soup = BeautifulSoup(html, "html.parser")
+    vacancies = []
+    for a in soup.select("a[href*='/vacancies/']"):
+        title = a.get_text(strip=True)
+        link = a["href"]
+        if vacancy_is_valid(title):
+            vacancies.append((title, link))
+    return vacancies
+
+
+def start_browser():
+    options = uc.ChromeOptions()
+    options.binary_location = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--start-maximized")
+    return uc.Chrome(options=options)
+
+
+def main():
+    driver = start_browser()
+    seen = set()
+
+    send_to_discord("🟢 @everyone **Agropraktika UK monitor started**")
+
+    while True:
+        try:
+            driver.get(VACANCIES_URL)
+            time.sleep(4)
+
+            vacancies = parse_vacancies(driver.page_source)
+
+            for title, link in vacancies:
+                if link not in seen:
+                    seen.add(link)
+                    send_to_discord(
+                        f"@everyone 🚨 **NEW UK VACANCY (≈30s window)**\n"
+                        f"**{title}**\n"
+                        f"https://agropraktika.eu{link}"
+                    )
+        except Exception as e:
+            send_to_discord(f"⚠️ Error: {e}")
+
+        time.sleep(CHECK_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()

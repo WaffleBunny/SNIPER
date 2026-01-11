@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies...
+python -m pip install -r requirements.txt
+echo Starting Agropraktika monitor...
+python agro_monitor.py
+pause
